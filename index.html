@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AKUL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@900&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0d0d0d; /* Exact dark from reference */
+        }
+
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .content-wrapper {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            text-align: center;
+            width: 100%;
+            pointer-events: none;
+            mix-blend-mode: exclusion;
+        }
+
+        .main-text {
+            font-family: 'Montserrat', sans-serif;
+            font-size: clamp(4rem, 15vw, 12rem);
+            font-weight: 900;
+            color: #e4ded7; /* Exact text color from reference */
+            letter-spacing: -0.02em;
+            text-transform: uppercase;
+            line-height: 1;
+            margin: 0;
+            padding: 0 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-container"></canvas>
+
+    <div class="content-wrapper">
+        <h1 class="main-text">AKUL</h1>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas-container');
+        const ctx = canvas.getContext('2d');
+
+        let stars = [];
+        const numStars = 4000; // Significantly increased density
+        const focalLength = 400; // Controls the "depth" distortion
+        let centerX, centerY;
+        
+        // Mouse interaction state
+        let mouseX = 0;
+        let mouseY = 0;
+        let targetSpeed = 2; // Base speed
+        let speed = targetSpeed;
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            centerX = canvas.width / 2;
+            centerY = canvas.height / 2;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // Mouse Move for Parallax and Speed
+        document.addEventListener('mousemove', (e) => {
+            // Calculate mouse offset from center (-1 to 1)
+            mouseX = (e.clientX - centerX) / centerX;
+            mouseY = (e.clientY - centerY) / centerY;
+        });
+
+        class Star {
+            constructor() {
+                this.init(true);
+            }
+
+            // 'randomZ' allows initializing stars all along the Z axis initially
+            // so we don't have a blank screen at start
+            init(randomZ = false) {
+                // Pick a random x,y in a large coordinate space (-width to width)
+                this.x = (Math.random() - 0.5) * canvas.width * 4; 
+                this.y = (Math.random() - 0.5) * canvas.height * 4;
+                
+                // Depth
+                this.z = randomZ ? Math.random() * 2000 : 2000;
+                
+                // Base size
+                this.size = Math.random();
+            }
+
+            update() {
+                // Move star towards camera
+                // We add a tiny bit of mouse interaction to the movement itself
+                this.z -= speed;
+
+                // Move x and y slightly opposite to mouse to simulate rotation
+                this.x -= mouseX * 2;
+                this.y -= mouseY * 2;
+
+                // Reset if it passes the camera or goes too far off screen
+                if (this.z <= 1) {
+                    this.init();
+                }
+            }
+
+            draw() {
+                // Perspective projection formula
+                // sx = x * (focalLength / z) + center
+                const scale = focalLength / this.z;
+                const sx = this.x * scale + centerX;
+                const sy = this.y * scale + centerY;
+                const r = this.size * scale;
+
+                // Only draw if within bounds (optimization)
+                if (sx < 0 || sx > canvas.width || sy < 0 || sy > canvas.height) return;
+
+                ctx.beginPath();
+                ctx.arc(sx, sy, r, 0, Math.PI * 2);
+                
+                // Opacity based on depth (fades in from far away, transparent when very close)
+                const opacity = Math.min(1, (2000 - this.z) / 1000);
+                ctx.fillStyle = `rgba(228, 222, 215, ${opacity})`; // #e4ded7 RGB
+                ctx.fill();
+            }
+        }
+
+        // Initialize
+        for (let i = 0; i < numStars; i++) {
+            stars.push(new Star());
+        }
+
+        function animate() {
+            // Clear canvas
+            ctx.fillStyle = "#0d0d0d";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = 0; i < stars.length; i++) {
+                stars[i].update();
+                stars[i].draw();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
