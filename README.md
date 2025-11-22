@@ -1,2 +1,3 @@
 # Akul-Patel.github.io
-akul.net repo
+
+repo connected to akul.net domain
