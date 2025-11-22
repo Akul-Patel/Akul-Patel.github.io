@@ -58,7 +58,7 @@
 
     <!-- The Foreground Content -->
     <div class="content-wrapper">
-        <!-- <h1 class="main-text">AKUL</h1> -->
+        <h1 class="main-text">AKUL</h1>
     </div>
 
     <script>
@@ -66,15 +66,11 @@
         const ctx = canvas.getContext('2d');
 
         // Configuration
-        const numStars = 20000; // High density for "exact" look
+        const numStars = 35000; // High density
         const focalLength = 400; // Distance to the "camera"
-        const baseSpeed = 2; 
         
         let stars = [];
         let centerX, centerY;
-        let speed = baseSpeed;
-        let mouseX = 0;
-        let mouseY = 0;
 
         // Initialize Canvas Size
         function resize() {
@@ -87,71 +83,61 @@
         window.addEventListener('resize', resize);
         resize();
 
-        // Mouse Interaction (Subtle parallax/steering)
-        // document.addEventListener('mousemove', (e) => {
-        //     // Normalize mouse position from -1 to 1
-        //     mouseX = (e.clientX - centerX) / centerX;
-        //     mouseY = (e.clientY - centerY) / centerY;
-        // });
-
         // Star Class representing a single particle in 3D space
         class Star {
             constructor() {
-                this.init(true); // 'true' means spread randomly on Z axis initially
+                this.init(); 
             }
 
-            init(initialSpawn = false) {
-                // X and Y coordinates are random across a wide area
-                // We multiply by 4 to ensure stars enter from the sides too, not just the center
-                this.x = (Math.random() - 0.5) * canvas.width * 4;
-                this.y = (Math.random() - 0.5) * canvas.height * 4;
+            init() {
+                // Spread randomly in a large area
+                // We use a larger multiplier (6) to ensure we have enough buffer for the drift
+                this.x = (Math.random() - 0.5) * canvas.width * 6;
+                this.y = (Math.random() - 0.5) * canvas.height * 6;
                 
-                // Z coordinate (depth). 0 is close, 2000 is far.
-                // If initialSpawn, spread them out. If resetting, put them far away (2000).
-                this.z = initialSpawn ? Math.random() * 2000 : 2000;
+                // Z coordinate (depth). Fixed random depth between 100 and 2000.
+                this.z = Math.random() * 1900 + 100;
                 
-                // Randomize size slightly for variety
+                // Randomize size slightly
                 this.size = Math.random();
             }
 
             update() {
-                // Move star closer to the screen (decrease Z)
-                this.z -= speed;
+                // Move all stars in the same direction (Diagonal Drift)
+                // Because we are moving 'x' and 'y' in world space, 
+                // the perspective projection automatically creates parallax 
+                // (closer stars move faster on screen than far stars).
+                this.x -= 2; // Drift Left
+                this.y -= 1; // Drift Up
 
-                // Apply subtle parallax shift based on mouse
-                this.x -= mouseX * 2;
-                this.y -= mouseY * 2;
-
-                // Reset star if it passes the camera (z <= 1)
-                if (this.z <= 1) {
-                    this.init();
-                }
+                // Boundary checks with wrapping
+                // We reset them to the opposite side to create an infinite loop
+                const boundaryX = canvas.width * 3;
+                const boundaryY = canvas.height * 3;
+                
+                if (this.x < -boundaryX) this.x = boundaryX;
+                if (this.y < -boundaryY) this.y = boundaryY;
             }
 
             draw() {
-                // 3D to 2D Projection Math
-                // x_screen = x_world * (focal_length / z_depth)
+                // 3D to 2D Projection
                 const scale = focalLength / this.z;
                 const sx = this.x * scale + centerX;
                 const sy = this.y * scale + centerY;
                 
-                // Scale the size based on proximity
                 const r = this.size * scale;
 
-                // Performance check: don't draw if off-screen
+                // Don't draw if off-screen
                 if (sx < 0 || sx > canvas.width || sy < 0 || sy > canvas.height) return;
 
                 ctx.beginPath();
                 ctx.arc(sx, sy, r, 0, Math.PI * 2);
                 
-                // Fade effect: 
-                // Stars are transparent when far away, opaque when close
-                // We also fade them out if they get TOO close (z < 20) to prevent "popping"
+                // Static opacity based on depth
                 let opacity = (2000 - this.z) / 1000;
-                if (this.z < 20) opacity = this.z / 20; 
                 opacity = Math.max(0, Math.min(1, opacity));
 
-                ctx.fillStyle = `rgba(228, 222, 215, ${opacity})`; // Matching color #e4ded7
+                ctx.fillStyle = `rgba(228, 222, 215, ${opacity})`; 
                 ctx.fill();
             }
         }
@@ -166,11 +152,9 @@
 
         // Animation Loop
         function animate() {
-            // Clear screen with background color
             ctx.fillStyle = "#0d0d0d";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Update and Draw all stars
             for (let i = 0; i < stars.length; i++) {
                 stars[i].update();
                 stars[i].draw();
